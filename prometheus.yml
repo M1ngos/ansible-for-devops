@@ -1,0 +1,54 @@
+---
+- name: Install Prometheus on Docker
+  hosts: all
+  vars:
+    prometheus_version: "v2.48.1"
+    prometheus_dir: "/opt/prometheus"
+
+  tasks:
+    - name: Create Prometheus directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ prometheus_dir }}"
+        - "{{ prometheus_dir }}/data"
+
+    - name: Create Prometheus configuration file
+      copy:
+        content: |
+          global:
+            scrape_interval: 15s
+            evaluation_interval: 15s
+
+          scrape_configs:
+            - job_name: 'prometheus'
+              static_configs:
+                - targets: ['localhost:9090']
+        dest: "{{ prometheus_dir }}/prometheus.yml"
+        mode: '0644'
+
+    - name: Run Prometheus Docker container
+      docker_container:
+        name: prometheus
+        image: "prom/prometheus:{{ prometheus_version }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "9090:9090"
+        volumes:
+          - "{{ prometheus_dir }}/prometheus.yml:/etc/prometheus/prometheus.yml"
+          - "{{ prometheus_dir }}/data:/prometheus"
+        command:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus'
+
+    - name: Verify Prometheus container is running
+      shell: docker ps --filter name=prometheus --format "{{ '{{.Names}} {{.Status}}' }}"
+      register: prometheus_status
+      changed_when: false
+
+    - name: Display Prometheus status
+      debug:
+        msg: "{{ prometheus_status.stdout }}"

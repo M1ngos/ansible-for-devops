@@ -1,17 +1,20 @@
-# Docker Installation with Ansible
+# Docker & Container Services with Ansible
 
-This project automates the installation of Docker Engine and Docker Compose on Ubuntu servers using Ansible.
+This project automates the installation of Docker Engine, Docker Compose, and containerized services (Prometheus, Nginx) on Ubuntu servers using Ansible.
 
 ## Files
 
 - **docker.yml** - Ansible playbook that installs Docker and Docker Compose
-- **inventory.ini** - Inventory file containing server list and connection details
+- **prometheus.yml** - Ansible playbook that deploys Prometheus as a Docker container
+- **nginx.yml** - Ansible playbook that deploys Nginx as a Docker container
+- **nginx-config-notes.md** - Documentation on Nginx configuration handling approaches
+- **inventory.ini** - Inventory file containing server list and connection details (21 servers with custom SSH ports)
 
 ## Prerequisites
 
 - Ansible installed on your local machine
 - Ubuntu servers (target machines)
-- SSH access to the servers
+- SSH access to the servers (with custom ports supported)
 - Sudo privileges on the servers
 
 ### Install Ansible
@@ -25,35 +28,61 @@ sudo apt install ansible
 brew install ansible
 ```
 
+## Available Playbooks
+
+### 1. Docker Installation (docker.yml)
+Installs Docker Engine and Docker Compose on Ubuntu servers.
+
+```bash
+ansible-playbook docker.yml -i inventory.ini
+```
+
+### 2. Prometheus (prometheus.yml)
+Deploys Prometheus monitoring as a Docker container.
+
+- Config location: `/opt/prometheus/prometheus.yml`
+- Data location: `/opt/prometheus/data`
+- Web UI: `http://<server-ip>:9090`
+
+```bash
+ansible-playbook prometheus.yml -i inventory.ini
+```
+
+### 3. Nginx (nginx.yml)
+Deploys Nginx web server as a Docker container.
+
+- Config location: `/opt/nginx/conf/nginx.conf`
+- HTML files: `/opt/nginx/html/`
+- Logs: `/opt/nginx/logs/`
+- Web UI: `http://<server-ip>:80`
+
+```bash
+ansible-playbook nginx.yml -i inventory.ini
+```
+
+See `nginx-config-notes.md` for configuration management options.
+
 ## Configuration
 
 ### inventory.ini
 
-The inventory file contains your server list and connection settings:
+The inventory file contains your server list with custom SSH ports for each server:
 
 ```ini
 [servers]
-server1 ansible_host=10.23.202.29 ansible_connection=ssh
-server2 ansible_host=10.23.202.30 ansible_connection=ssh
-
-[servers:vars]
-ansible_user=adgomes
-ansible_password='%!AGm$#2o25'
-ansible_become=yes
-ansible_become_user=root
-ansible_become_pass='%!AGm$#2o25'
-ansible_ssh_common_args='-o StrictHostKeyChecking=no'
-ansible_python_interpreter=/usr/bin/python3
+app1 ansible_host=10.23.5.11 ansible_port=2201
+app2 ansible_host=10.23.5.12 ansible_port=2202
+app3 ansible_host=10.23.5.31 ansible_port=2203
+... (21 servers total)
 ```
 
-To add more servers, simply add new lines under `[servers]`:
+**Server Naming**: You can use any alias (app1, web1, db1, etc.) - the `ansible_host` and `ansible_port` are what matter for connections.
 
-```ini
-[servers]
-server1 ansible_host=10.23.202.29 ansible_connection=ssh
-server2 ansible_host=10.23.202.30 ansible_connection=ssh
-server3 ansible_host=10.23.202.31 ansible_connection=ssh
-```
+**Common Variables** (applied to all servers):
+- `ansible_user` - SSH username
+- `ansible_port` - Custom SSH port per server
+- `ansible_become` - Enable privilege escalation
+- `ansible_ssh_common_args` - SSH options (StrictHostKeyChecking disabled)
 
 ### docker.yml
 
@@ -77,14 +106,29 @@ The playbook performs the following tasks:
 ansible-playbook docker.yml -i inventory.ini
 ```
 
-### Install Docker on specific servers
+### Deploy Prometheus
+
+```bash
+ansible-playbook prometheus.yml -i inventory.ini
+```
+
+### Deploy Nginx
+
+```bash
+ansible-playbook nginx.yml -i inventory.ini
+```
+
+### Run on specific servers
 
 ```bash
 # Single server
-ansible-playbook docker.yml -i inventory.ini --limit server1
+ansible-playbook docker.yml -i inventory.ini --limit app1
 
 # Multiple servers
-ansible-playbook docker.yml -i inventory.ini --limit server1,server2
+ansible-playbook docker.yml -i inventory.ini --limit app1,app2,app3
+
+# Server group (if using groups)
+ansible-playbook docker.yml -i inventory.ini --limit web_servers
 ```
 
 ### Check playbook syntax
@@ -115,10 +159,28 @@ After the playbook completes:
 2. Verify Docker is working:
 
 ```bash
-ssh adgomes@10.23.202.29
+ssh adilsongomes@10.23.5.11
 docker --version
 docker compose version
 docker run hello-world
+```
+
+3. Verify Prometheus (after running prometheus.yml):
+
+```bash
+# Check container status
+docker ps --filter name=prometheus
+
+# Access web UI at http://<server-ip>:9090
+```
+
+4. Verify Nginx (after running nginx.yml):
+
+```bash
+# Check container status
+docker ps --filter name=nginx
+
+# Access web UI at http://<server-ip>:80
 ```
 
 ## Security Notes

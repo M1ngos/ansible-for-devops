@@ -1,0 +1,78 @@
+---
+- name: Install Nginx on Docker
+  hosts: all
+  vars:
+    nginx_dir: "/opt/nginx"
+
+  tasks:
+    - name: Create Nginx directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ nginx_dir }}"
+        - "{{ nginx_dir }}/conf"
+        - "{{ nginx_dir }}/html"
+        - "{{ nginx_dir }}/logs"
+
+    - name: Create default Nginx configuration
+      copy:
+        content: |
+          events {
+              worker_connections 1024;
+          }
+
+          http {
+              include /etc/nginx/mime.types;
+              default_type application/octet-stream;
+
+              server {
+                  listen 80;
+                  server_name localhost;
+
+                  location / {
+                      root /usr/share/nginx/html;
+                      index index.html index.htm;
+                  }
+              }
+          }
+        dest: "{{ nginx_dir }}/conf/nginx.conf"
+        mode: '0644'
+
+    - name: Create default index.html
+      copy:
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Welcome to Nginx!</title>
+          </head>
+          <body>
+              <h1>Success! Nginx is running via Docker.</h1>
+          </body>
+          </html>
+        dest: "{{ nginx_dir }}/html/index.html"
+        mode: '0644'
+
+    - name: Run Nginx Docker container
+      docker_container:
+        name: nginx
+        image: "nginx:latest"
+        state: started
+        restart_policy: always
+        ports:
+          - "80:80"
+        volumes:
+          - "{{ nginx_dir }}/conf/nginx.conf:/etc/nginx/nginx.conf"
+          - "{{ nginx_dir }}/html:/usr/share/nginx/html"
+          - "{{ nginx_dir }}/logs:/var/log/nginx"
+
+    - name: Verify Nginx container is running
+      shell: docker ps --filter name=nginx --format "{{ '{{.Names}} {{.Status}}' }}"
+      register: nginx_status
+      changed_when: false
+
+    - name: Display Nginx status
+      debug:
+        msg: "{{ nginx_status.stdout }}"
