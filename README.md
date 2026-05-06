@@ -73,7 +73,7 @@ The inventory file contains your server list with custom SSH ports for each serv
 app1 ansible_host=10.23.5.11 ansible_port=2201
 app2 ansible_host=10.23.5.12 ansible_port=2202
 app3 ansible_host=10.23.5.31 ansible_port=2203
-... (21 servers total)
+... 
 ```
 
 **Server Naming**: You can use any alias (app1, web1, db1, etc.) - the `ansible_host` and `ansible_port` are what matter for connections.
@@ -159,7 +159,7 @@ After the playbook completes:
 2. Verify Docker is working:
 
 ```bash
-ssh adilsongomes@10.23.5.11
+ssh user@10.23.5.11
 docker --version
 docker compose version
 docker run hello-world
