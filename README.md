@@ -8,6 +8,9 @@ This project automates the installation of Docker Engine, Docker Compose, and co
 - **prometheus.yml** - Ansible playbook that deploys Prometheus as a Docker container
 - **nginx.yml** - Ansible playbook that deploys Nginx as a Docker container
 - **nginx-config-notes.md** - Documentation on Nginx configuration handling approaches
+- **mysql.yml** - Ansible playbook that installs MySQL 8.0 and configures remote access
+- **mysql-change-credentials.yml** - Ansible playbook to update MySQL user credentials per host
+- **host_vars/** - Per-host variable files (used by mysql-change-credentials.yml)
 - **inventory.ini** - Inventory file containing server list and connection details (21 servers with custom SSH ports)
 
 ## Prerequisites
@@ -213,6 +216,80 @@ vi results/tracker.yml
 ```
 
 See `reports/README.md` for full documentation.
+
+---
+
+## MySQL Playbooks
+
+### 4. MySQL Installation (mysql.yml)
+
+Installs MySQL Community Server 8.0 on Ubuntu servers, configures remote access, and creates a named database per host.
+
+```bash
+ansible-playbook mysql.yml -i inventory.ini
+```
+
+**What it does:**
+- Installs `mysql-server-8.0` and `mysql-client-8.0`
+- Starts and enables the MySQL service
+- Configures MySQL to listen on all interfaces (`bind-address = 0.0.0.0`)
+- Allows port 3306 in UFW (skipped if UFW is not installed)
+- Creates a database named after the inventory hostname
+- Creates a remote user with full privileges
+
+**Variables** (set in `mysql.yml` vars section):
+
+| Variable | Default | Description |
+|---|---|---|
+| `mysql_bind_address` | `0.0.0.0` | Interface MySQL listens on |
+| `mysql_port` | `3306` | MySQL port |
+| `mysql_remote_user` | `remote_admin` | Remote user to create |
+| `mysql_remote_password` | *(set in file)* | Remote user password |
+
+---
+
+### 5. MySQL Change Credentials (mysql-change-credentials.yml)
+
+Changes MySQL user credentials per host. Each host can have different new credentials defined in its own `host_vars` file. **Idempotent** — skips hosts where credentials are already up to date.
+
+#### Setup: host_vars
+
+Create a file for each host under `host_vars/<hostname>.yml`:
+
+```yaml
+# host_vars/bd-replica.yml
+mysql_user: "remote_admin"        # current username
+mysql_new_username: "remote_admin" # new username (can be same to keep it)
+mysql_new_password: "newpassword"  # new password
+```
+
+The filename must match the host alias in your inventory exactly.
+
+#### Run on all hosts
+
+```bash
+ansible-playbook mysql-change-credentials.yml -i inventory.ini
+```
+
+#### Run on a single host
+
+```bash
+ansible-playbook mysql-change-credentials.yml -i inventory.ini --limit bd-replica
+```
+
+#### How idempotency works
+
+1. Tries logging in with the **new** credentials first
+2. If login succeeds → credentials already updated, **all steps skipped**
+3. If login fails → checks old user exists, renames if needed, then changes password
+
+#### Notes
+
+- Passwords are never printed in output (`no_log: true`)
+- Renaming is skipped if `mysql_new_username` equals `mysql_user`
+- Safe to re-run any number of times
+
+---
 
 ## Troubleshooting
 
