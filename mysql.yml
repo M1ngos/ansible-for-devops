@@ -1,0 +1,87 @@
+---
+- name: Install MySQL Community Server 8 on Ubuntu
+  hosts: all
+  vars:
+    mysql_package: mysql-server-8.0
+    mysql_bind_address: "0.0.0.0"
+    mysql_port: 3306
+    mysql_remote_user: "remote_admin"
+    mysql_remote_password: "rDxZJa2scTEQcFNvforM"
+
+  tasks:
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      retries: 3
+      delay: 10
+      register: apt_update_result
+      until: apt_update_result is succeeded
+
+    - name: Install MySQL Community Server 8
+      apt:
+        name: "{{ mysql_package }}"
+        state: present
+
+    - name: Ensure MySQL service is started and enabled
+      systemd:
+        name: mysql
+        state: started
+        enabled: yes
+
+    - name: Verify MySQL installation
+      command: mysql --version
+      register: mysql_version_output
+      changed_when: false
+
+    - name: Display MySQL version
+      debug:
+        msg: "{{ mysql_version_output.stdout }}"
+
+    - name: Verify MySQL service status
+      command: mysqladmin ping
+      register: mysql_ping
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display MySQL service status
+      debug:
+        msg: "MySQL service: {{ 'RUNNING' if mysql_ping.rc == 0 else 'NOT RESPONDING' }}"
+
+    - name: Configure MySQL to listen on all interfaces
+      lineinfile:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        regexp: '^bind-address\s*='
+        line: "bind-address = {{ mysql_bind_address }}"
+      notify: restart mysql
+
+    - name: Check if UFW is available
+      command: which ufw
+      register: ufw_check
+      changed_when: false
+      failed_when: false
+
+    - name: Allow MySQL port in UFW
+      ufw:
+        rule: allow
+        port: "{{ mysql_port }}"
+        proto: tcp
+      when: ufw_check.rc == 0
+
+    - name: Create remote MySQL user
+      shell: |
+        mysql -u root -e "CREATE USER IF NOT EXISTS '{{ mysql_remote_user }}'@'%' IDENTIFIED BY '{{ mysql_remote_password }}';"
+        mysql -u root -e "GRANT ALL PRIVILEGES ON *.* TO '{{ mysql_remote_user }}'@'%' WITH GRANT OPTION;"
+        mysql -u root -e "FLUSH PRIVILEGES;"
+
+    - name: Display remote access info
+      debug:
+        msg:
+          - "Remote MySQL user created: {{ mysql_remote_user }}"
+          - "Connect from any host: mysql -h <server_ip> -P {{ mysql_port }} -u {{ mysql_remote_user }} -p"
+
+  handlers:
+    - name: restart mysql
+      systemd:
+        name: mysql
+        state: restarted
