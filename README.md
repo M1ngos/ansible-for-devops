@@ -196,6 +196,24 @@ ansible-vault encrypt inventory.ini
 ansible-playbook docker.yml -i inventory.ini --ask-vault-pass
 ```
 
+## Report & Tracking System
+
+After each playbook run, update the tracking files:
+
+- **results/tracker.yml** - Host status (success/failed/unreachable) and common issues
+- **reports/docker/run-YYYYMMDD-HHMM.yml** - Detailed reports per run
+- **results/status.sh** - Quick status viewer
+
+```bash
+# View quick status
+bash results/status.sh
+
+# After a run, update tracker with results
+vi results/tracker.yml
+```
+
+See `reports/README.md` for full documentation.
+
 ## Troubleshooting
 
 ### Connection issues
