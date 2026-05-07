@@ -68,6 +68,9 @@
         proto: tcp
       when: ufw_check.rc == 0
 
+    - name: Create database named after host
+      shell: mysql -u root -e "CREATE DATABASE IF NOT EXISTS \`{{ inventory_hostname }}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
     - name: Create remote MySQL user
       shell: |
         mysql -u root -e "CREATE USER IF NOT EXISTS '{{ mysql_remote_user }}'@'%' IDENTIFIED BY '{{ mysql_remote_password }}';"
