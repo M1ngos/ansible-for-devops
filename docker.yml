@@ -2,6 +2,25 @@
 - name: Install Docker and Docker Compose on Ubuntu
   hosts: all
   tasks:
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      retries: 3
+      delay: 10
+      register: apt_update_result
+      until: apt_update_result is succeeded
+
+    - name: Install required system packages
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - iputils-ping
+        state: present
+
     - name: Check network connectivity
       command: ping -c 2 8.8.8.8
       register: ping_result
@@ -27,24 +46,6 @@
       fail:
         msg: "DNS resolution failed. Check /etc/resolv.conf or DNS settings."
       when: dns_result.rc != 0
-
-    - name: Update apt package cache
-      apt:
-        update_cache: yes
-        cache_valid_time: 3600
-      retries: 3
-      delay: 10
-      register: apt_update_result
-      until: apt_update_result is succeeded
-
-    - name: Install required system packages
-      apt:
-        name:
-          - ca-certificates
-          - curl
-          - gnupg
-          - lsb-release
-        state: present
 
     - name: Create directory for Docker GPG key
       file:
