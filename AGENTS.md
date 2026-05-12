@@ -28,8 +28,11 @@ The wrapper saves timestamped reports under `reports/<playbook>/run-<timestamp>.
 |----------|---------|------|
 | `docker.yml` | Install Docker Engine + Compose on Ubuntu | — |
 | `prometheus.yml` | Deploy Prometheus container | 9090 |
+| `node-exporter.yml` | Remove Prometheus + deploy Node Exporter container | 9100 |
 | `nginx.yml` | Deploy Nginx container | 80 |
 | `mysql.yml` | Install MySQL Community Server 8.0.45 on Ubuntu | 3306 |
+| `metabase.yml` | Deploy Metabase BI container | 3000 |
+| `grafana.yml` | Deploy Grafana container | 3001 |
 
 `docker.yml` has network connectivity prechecks (ping 8.8.8.8, DNS resolution) that will **fail** on minimal images missing `iputils-ping`. This is a known issue affecting 15/21 hosts (see `results/tracker.yml`).
 

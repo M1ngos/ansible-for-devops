@@ -1,0 +1,4 @@
+ ALTER USER 'remote_admin'@'%' IDENTIFIED BY
+  'Hq$F!&wrYqoYjg&%*DxyH';
+  FLUSH PRIVILEGES;
+  EXIT;

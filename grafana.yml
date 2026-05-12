@@ -1,0 +1,48 @@
+---
+- name: Deploy Grafana on Docker
+  hosts: all
+  vars:
+    grafana_version: "11.4.0"
+    grafana_dir: "/opt/grafana"
+    grafana_port: 3001
+
+  tasks:
+    - name: Create Grafana directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ grafana_dir }}"
+        - "{{ grafana_dir }}/data"
+        - "{{ grafana_dir }}/provisioning"
+
+    - name: Run Grafana Docker container
+      docker_container:
+        name: grafana
+        image: "grafana/grafana:{{ grafana_version }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "{{ grafana_port }}:3000"
+        volumes:
+          - "{{ grafana_dir }}/data:/var/lib/grafana"
+          - "{{ grafana_dir }}/provisioning:/etc/grafana/provisioning"
+        env:
+          GF_SECURITY_ADMIN_USER: "admin"
+          GF_SECURITY_ADMIN_PASSWORD: "admin"
+          GF_PATHS_DATA: "/var/lib/grafana"
+          GF_PATHS_PROVISIONING: "/etc/grafana/provisioning"
+
+    - name: Verify Grafana container is running
+      shell: docker ps --filter name=grafana --format "{{ '{{.Names}} {{.Status}}' }}"
+      register: grafana_status
+      changed_when: false
+
+    - name: Display Grafana status
+      debug:
+        msg: "{{ grafana_status.stdout }}"
+
+    - name: Display access info
+      debug:
+        msg: "Grafana is available at http://{{ inventory_hostname }}:{{ grafana_port }} (admin/admin)"

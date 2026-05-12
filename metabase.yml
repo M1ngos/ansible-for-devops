@@ -1,0 +1,40 @@
+---
+- name: Deploy Metabase on Docker
+  hosts: all
+  vars:
+    metabase_version: "v0.52.6"
+    metabase_dir: "/opt/metabase"
+    metabase_port: 3000
+
+  tasks:
+    - name: Create Metabase data directory
+      file:
+        path: "{{ metabase_dir }}/data"
+        state: directory
+        mode: '0755'
+
+    - name: Run Metabase Docker container
+      docker_container:
+        name: metabase
+        image: "metabase/metabase:{{ metabase_version }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "{{ metabase_port }}:3000"
+        volumes:
+          - "{{ metabase_dir }}/data:/metabase-data"
+        env:
+          MB_DB_FILE: "/metabase-data/metabase.db"
+
+    - name: Verify Metabase container is running
+      shell: docker ps --filter name=metabase --format "{{ '{{.Names}} {{.Status}}' }}"
+      register: metabase_status
+      changed_when: false
+
+    - name: Display Metabase status
+      debug:
+        msg: "{{ metabase_status.stdout }}"
+
+    - name: Display access info
+      debug:
+        msg: "Metabase is available at http://{{ inventory_hostname }}:{{ metabase_port }}"

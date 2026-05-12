@@ -1,0 +1,49 @@
+---
+- name: Remove Prometheus and Deploy Node Exporter on Docker
+  hosts: all
+  vars:
+    node_exporter_version: "v1.8.2"
+    node_exporter_port: 9100
+    prometheus_dir: "/opt/prometheus"
+
+  tasks:
+    - name: Stop and remove Prometheus container
+      docker_container:
+        name: prometheus
+        state: absent
+
+    - name: Remove Prometheus data directory
+      file:
+        path: "{{ prometheus_dir }}"
+        state: absent
+
+    - name: Run Node Exporter Docker container
+      docker_container:
+        name: node-exporter
+        image: "prom/node-exporter:{{ node_exporter_version }}"
+        state: started
+        restart_policy: always
+        network_mode: host
+        pid_mode: host
+        volumes:
+          - "/proc:/host/proc:ro"
+          - "/sys:/host/sys:ro"
+          - "/:/rootfs:ro"
+        command:
+          - '--path.procfs=/host/proc'
+          - '--path.sysfs=/host/sys'
+          - '--path.rootfs=/rootfs'
+          - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+
+    - name: Verify Node Exporter container is running
+      shell: docker ps --filter name=node-exporter --format "{{ '{{.Names}} {{.Status}}' }}"
+      register: node_exporter_status
+      changed_when: false
+
+    - name: Display Node Exporter status
+      debug:
+        msg: "{{ node_exporter_status.stdout }}"
+
+    - name: Display access info
+      debug:
+        msg: "Node Exporter metrics available at http://{{ inventory_hostname }}:{{ node_exporter_port }}/metrics"
