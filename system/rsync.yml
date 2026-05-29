@@ -1,0 +1,19 @@
+---
+- name: Install rsync
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Install rsync
+      package:
+        name: rsync
+        state: present
+
+    - name: Verify rsync is installed
+      command: rsync --version
+      register: rsync_version
+      changed_when: false
+
+    - name: Display rsync version
+      debug:
+        msg: "{{ rsync_version.stdout_lines[0] }}"

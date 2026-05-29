@@ -1,3 +1,5 @@
 inventory.ini
 reports/*
 results/*
+host_vars/*
+!host_vars/bd-change-pass.yml

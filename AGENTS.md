@@ -11,13 +11,13 @@
 
 ```bash
 # Preferred: wrapper with auto-report generation
-bash run-playbook.sh [playbook.yml] [inventory.ini]
+bash run-playbook.sh [path/to/playbook.yml] [inventory.ini]
 
 # Manual equivalents
-ansible-playbook docker.yml -i inventory.ini -v
-ansible-playbook docker.yml -i inventory.ini --limit app1
-ansible-playbook docker.yml -i inventory.ini --check
-ansible-playbook docker.yml -i inventory.ini --syntax-check
+ansible-playbook system/docker.yml -i inventory.ini -v
+ansible-playbook system/docker.yml -i inventory.ini --limit app1
+ansible-playbook system/docker.yml -i inventory.ini --check
+ansible-playbook system/docker.yml -i inventory.ini --syntax-check
 ```
 
 The wrapper saves timestamped reports under `reports/<playbook>/run-<timestamp>.yml`.
@@ -26,15 +26,25 @@ The wrapper saves timestamped reports under `reports/<playbook>/run-<timestamp>.
 
 | Playbook | Purpose | Port |
 |----------|---------|------|
-| `docker.yml` | Install Docker Engine + Compose on Ubuntu | — |
-| `prometheus.yml` | Deploy Prometheus container | 9090 |
-| `node-exporter.yml` | Remove Prometheus + deploy Node Exporter container | 9100 |
-| `nginx.yml` | Deploy Nginx container | 80 |
-| `mysql.yml` | Install MySQL Community Server 8.0.45 on Ubuntu | 3306 |
-| `metabase.yml` | Deploy Metabase BI container | 3000 |
-| `grafana.yml` | Deploy Grafana container | 3001 |
+| `system/docker.yml` | Install Docker Engine + Compose on Ubuntu | — |
+| `system/crontab.yml` | Set up cron jobs | — |
+| `system/rsync.yml` | Install rsync | — |
+| `databases/mysql.yml` | Install MySQL Community Server 8.0.45 on Ubuntu | 3306 |
+| `databases/metabase.yml` | Deploy Metabase BI container | 3000 |
+| `databases/change-credentials/mysql-change-credentials.yml` | Change MySQL user credentials per host | — |
+| `monitoring/prometheus.yml` | Deploy Prometheus container | 9090 |
+| `monitoring/node-exporter.yml` | Remove Prometheus + deploy Node Exporter container | 9100 |
+| `monitoring/grafana.yml` | Deploy Grafana container | 3001 |
+| `web/nginx.yml` | Deploy Nginx container | 80 |
+| `web/nginx-gestor-processos.yml` | Deploy Nginx for gestor-processos | 80 |
+| `web/nginx-gestor-processos-externo.yml` | Deploy Nginx for gestor-processos-externo | 80 |
+| `web/nginx-middleware-network.yml` | Deploy Nginx middleware network | 80 |
+| `web/nginx-portal-funcionario.yml` | Deploy Nginx for portal-funcionario | 80 |
+| `web/nginx-portal-utentes.yml` | Deploy Nginx for combined portals | 80 |
+| `web/php-fpm.yml` | Install PHP-FPM and extensions | — |
+| `web/php-fpm-purge.yml` | Remove PHP-FPM and extensions | — |
 
-`docker.yml` has network connectivity prechecks (ping 8.8.8.8, DNS resolution) that will **fail** on minimal images missing `iputils-ping`. This is a known issue affecting 15/21 hosts (see `results/tracker.yml`).
+`system/docker.yml` has network connectivity prechecks (ping 8.8.8.8, DNS resolution) that will **fail** on minimal images missing `iputils-ping`. This is a known issue affecting 15/21 hosts (see `results/tracker.yml`).
 
 ## Reports & Tracking
 

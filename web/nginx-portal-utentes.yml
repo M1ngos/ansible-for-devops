@@ -1,0 +1,57 @@
+---
+# Serves two portals from the same Nginx container:
+#   - Portal Balcão Virtual (Utentes) → PHP-FPM host:9000, /var/www/portal
+#   - Portal Escolas INATRO           → PHP-FPM host:9001, /var/www/escolas
+#
+# Config source: docs/nginx-combined-site.conf
+# Update server_name values in that file before running this playbook.
+
+- name: Install Nginx on Docker (combined portals)
+  hosts: all
+  vars:
+    nginx_dir: "/opt/nginx"
+
+  tasks:
+    - name: Create Nginx directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ nginx_dir }}"
+        - "{{ nginx_dir }}/conf"
+        - "{{ nginx_dir }}/html"
+        - "{{ nginx_dir }}/logs"
+
+    - name: Deploy combined Nginx configuration
+      copy:
+        src: ../config/nginx-combined-site.conf
+        dest: "{{ nginx_dir }}/conf/nginx.conf"
+        mode: '0644'
+
+    - name: Run Nginx Docker container
+      docker_container:
+        name: nginx
+        image: "nginx:latest"
+        state: started
+        restart_policy: always
+        recreate: true
+        ports:
+          - "80:80"
+        volumes:
+          - "{{ nginx_dir }}/conf/nginx.conf:/etc/nginx/nginx.conf"
+          - "{{ nginx_dir }}/html:/usr/share/nginx/html"
+          - "{{ nginx_dir }}/logs:/var/log/nginx"
+          - "/var/www/portal:/var/www/portal:ro"
+          - "/var/www/escolas:/var/www/escolas:ro"
+        etc_hosts:
+          host.docker.internal: host-gateway
+
+    - name: Verify Nginx container is running
+      shell: docker ps --filter name=nginx --format "{{ '{{.Names}} {{.Status}}' }}"
+      register: nginx_status
+      changed_when: false
+
+    - name: Display Nginx status
+      debug:
+        msg: "{{ nginx_status.stdout }}"

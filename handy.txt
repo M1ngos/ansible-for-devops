@@ -2,3 +2,6 @@
   'Hq$F!&wrYqoYjg&%*DxyH';
   FLUSH PRIVILEGES;
   EXIT;
+
+  sudo mysql -u root -e "ALTER USER 'remote_admin'@'%' IDENTIFIED BY 'Hq\$F!&wrYqoYjg&%*DxyH'; 
+  FLUSH PRIVILEGES;"                                                                           

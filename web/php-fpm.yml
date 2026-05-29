@@ -1,0 +1,49 @@
+---
+- name: Install PHP-FPM and extensions
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Install software-properties-common
+      apt:
+        name: software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: Add ondrej/php PPA
+      apt_repository:
+        repo: ppa:ondrej/php
+        state: present
+        update_cache: yes
+
+    - name: Wait for apt lock to be released
+      shell: while fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/cache/apt/archives/lock > /dev/null 2>&1; do sleep 2; done
+      changed_when: false
+
+    - name: Install PHP 8.2 FPM and extensions
+      apt:
+        name:
+          - php8.2-fpm
+          - php8.2-mysql
+          - php8.2-curl
+          - php8.2-mbstring
+          - php8.2-gd
+          - php8.2-zip
+          - php8.2-xml
+          - php8.2-exif
+        state: present
+
+    - name: Enable and start PHP-FPM
+      systemd:
+        name: php8.2-fpm
+        enabled: yes
+        state: started
+
+    - name: Verify PHP-FPM socket exists
+      stat:
+        path: /run/php/php8.2-fpm.sock
+      register: php_fpm_socket
+
+    - name: Display PHP-FPM socket status
+      debug:
+        msg: "{{ 'PHP-FPM socket is active' if php_fpm_socket.stat.exists else 'WARNING: PHP-FPM socket not found' }}"

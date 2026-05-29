@@ -1,0 +1,132 @@
+---
+- name: Set up bank_files_upload cron jobs
+  hosts: all
+  become: true
+  vars:
+    python: /home/andre/bank_files_upload/.venv/bin/python
+    scripts: /home/andre/bank_files_upload
+
+  tasks:
+    - name: Install cron
+      apt:
+        name: cron
+        state: present
+        update_cache: yes
+
+    - name: Ensure cron service is started and enabled
+      systemd:
+        name: cron
+        state: started
+        enabled: yes
+
+    - name: EmailScript - every 3 minutes
+      cron:
+        name: email_script
+        minute: "*/3"
+        job: "{{ python }} {{ scripts }}/EmailScript.py"
+        user: andre
+        state: present
+
+    - name: EmailScriptAux - every 2 minutes
+      cron:
+        name: email_script_aux
+        minute: "*/2"
+        job: "{{ python }} {{ scripts }}/EmailScriptAux.py"
+        user: andre
+        state: present
+
+    - name: mainResendNotifications - every minute
+      cron:
+        name: resend_notifications
+        minute: "*"
+        job: "{{ python }} {{ scripts }}/mainResendNotifications.py"
+        user: andre
+        state: present
+
+    - name: cedsif_main - every minute
+      cron:
+        name: cedsif_main
+        minute: "*"
+        job: "{{ python }} {{ scripts }}/cedsif_main.py"
+        user: andre
+        state: present
+
+    - name: cedsif_main_cancel - every 5 minutes
+      cron:
+        name: cedsif_main_cancel
+        minute: "*/5"
+        job: "{{ python }} {{ scripts }}/cedsif_main_cancel.py"
+        user: andre
+        state: present
+
+    - name: bkdatabase - every hour
+      cron:
+        name: bkdatabase
+        minute: "0"
+        job: "{{ python }} {{ scripts }}/bkdatabase.py"
+        user: andre
+        state: present
+
+    - name: main - every minute
+      cron:
+        name: main
+        minute: "*"
+        job: "{{ python }} {{ scripts }}/main.py"
+        user: andre
+        state: present
+
+    - name: processCsvFiles - every minute (at 0s)
+      cron:
+        name: process_csv
+        minute: "*"
+        job: "{{ python }} {{ scripts }}/processCsvFiles.py"
+        user: andre
+        state: present
+
+    - name: mainTicTac - every minute
+      cron:
+        name: main_tictac
+        minute: "*"
+        job: "{{ python }} {{ scripts }}/mainTicTac.py"
+        user: andre
+        state: present
+
+    - name: processCsvFiles - every minute at 10s offset
+      cron:
+        name: process_csv_10
+        minute: "*"
+        job: "sleep 10; {{ python }} {{ scripts }}/processCsvFiles.py"
+        user: andre
+        state: present
+
+    - name: processCsvFiles - every minute at 20s offset
+      cron:
+        name: process_csv_20
+        minute: "*"
+        job: "sleep 20; {{ python }} {{ scripts }}/processCsvFiles.py"
+        user: andre
+        state: present
+
+    - name: processCsvFiles - every minute at 30s offset
+      cron:
+        name: process_csv_30
+        minute: "*"
+        job: "sleep 30; {{ python }} {{ scripts }}/processCsvFiles.py"
+        user: andre
+        state: present
+
+    - name: processCsvFiles - every minute at 40s offset
+      cron:
+        name: process_csv_40
+        minute: "*"
+        job: "sleep 40; {{ python }} {{ scripts }}/processCsvFiles.py"
+        user: andre
+        state: present
+
+    - name: processCsvFiles - every minute at 50s offset
+      cron:
+        name: process_csv_50
+        minute: "*"
+        job: "sleep 50; {{ python }} {{ scripts }}/processCsvFiles.py"
+        user: andre
+        state: present
