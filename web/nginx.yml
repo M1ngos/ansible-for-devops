@@ -63,7 +63,6 @@
         restart_policy: always
         ports:
           - "80:80"
-          - "5000:5000"
           - "8080:8080"
         etc_hosts:
           host.docker.internal: "host-gateway"
