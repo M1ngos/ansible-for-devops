@@ -1,0 +1,19 @@
+---
+- name: Install Vim
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Install vim
+      package:
+        name: vim
+        state: present
+
+    - name: Verify vim is installed
+      command: vim --version
+      register: vim_version
+      changed_when: false
+
+    - name: Display vim version
+      debug:
+        msg: "{{ vim_version.stdout_lines[0] }}"
