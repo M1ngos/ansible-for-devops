@@ -38,12 +38,14 @@
         recreate: true
         ports:
           - "80:80"
+          - "443:443"
           - "127.0.0.1:8080:8080"   # dev: SSH tunnel → Balcão Virtual
           - "127.0.0.1:8081:8081"   # dev: SSH tunnel → Escolas INATRO
         volumes:
           - "{{ nginx_dir }}/conf/nginx.conf:/etc/nginx/nginx.conf"
           - "{{ nginx_dir }}/html:/usr/share/nginx/html"
           - "{{ nginx_dir }}/logs:/var/log/nginx"
+          - "{{ nginx_dir }}/ssl:/etc/nginx/ssl:ro"
           - "/var/www/portal:/var/www/portal:ro"
           - "/var/www/escolas:/var/www/escolas:ro"
         etc_hosts:

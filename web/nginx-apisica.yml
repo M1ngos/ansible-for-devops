@@ -1,9 +1,8 @@
 ---
-- name: Install Nginx on Docker for gestor-processos-externo
+- name: Install Nginx on Docker for apisica
   hosts: all
   vars:
     nginx_dir: "/opt/nginx"
-    app_root: "/var/www/gestor-processos-externo"
 
   tasks:
     - name: Create Nginx directories
@@ -17,9 +16,9 @@
         - "{{ nginx_dir }}/html"
         - "{{ nginx_dir }}/logs"
 
-    - name: Deploy gestor-processos-externo Nginx configuration
+    - name: Deploy apisica Nginx configuration
       copy:
-        src: ../config/nginx-gestor-processos-externo-site.conf
+        src: ../config/nginx-apisica-site.conf
         dest: "{{ nginx_dir }}/conf/nginx.conf"
         mode: '0644'
 
@@ -32,14 +31,11 @@
         ports:
           - "80:80"
           - "443:443"
-          - "5000:5000"
-          - "8080:8080"
         volumes:
           - "{{ nginx_dir }}/conf/nginx.conf:/etc/nginx/nginx.conf"
           - "{{ nginx_dir }}/html:/usr/share/nginx/html"
           - "{{ nginx_dir }}/logs:/var/log/nginx"
           - "{{ nginx_dir }}/ssl:/etc/nginx/ssl:ro"
-          - "{{ app_root }}:{{ app_root }}:ro"
         etc_hosts:
           host.docker.internal: host-gateway
 

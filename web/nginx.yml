@@ -29,7 +29,13 @@
 
               server {
                   listen 80;
+                  listen 443 ssl;
                   server_name localhost;
+
+                  ssl_certificate     /etc/nginx/ssl/fullchain.pem;
+                  ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+                  ssl_protocols       TLSv1.2 TLSv1.3;
+                  ssl_ciphers         HIGH:!aNULL:!MD5;
 
                   location / {
                       root /usr/share/nginx/html;
@@ -63,6 +69,7 @@
         restart_policy: always
         ports:
           - "80:80"
+          - "443:443"
           - "8080:8080"
         etc_hosts:
           host.docker.internal: "host-gateway"
@@ -70,6 +77,7 @@
           - "{{ nginx_dir }}/conf/nginx.conf:/etc/nginx/nginx.conf"
           - "{{ nginx_dir }}/html:/usr/share/nginx/html"
           - "{{ nginx_dir }}/logs:/var/log/nginx"
+          - "{{ nginx_dir }}/ssl:/etc/nginx/ssl:ro"
 
     - name: Verify Nginx container is running
       shell: docker ps --filter name=nginx --format "{{ '{{.Names}} {{.Status}}' }}"
