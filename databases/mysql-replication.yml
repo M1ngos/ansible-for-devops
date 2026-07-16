@@ -1,0 +1,174 @@
+---
+- name: Configure MySQL Sources for GTID Replication
+  hosts: bd-middleware,bd-condutor,bd-pagamentos,bd-escolas,bd-exames,bd-veiculos
+  vars:
+    replication_user: "repl_user"
+    replication_password: "ReplStr0ng#Pass2024!"
+
+  tasks:
+    - name: Set server_id online
+      shell: mysql -u root -e "SET GLOBAL server_id = {{ mysql_server_id }};"
+      changed_when: false
+
+    - name: Get current enforce_gtid_consistency
+      shell: mysql -u root -se "SELECT @@enforce_gtid_consistency;"
+      register: current_enforce_gtid
+      changed_when: false
+
+    - name: Set enforce_gtid_consistency to WARN
+      shell: mysql -u root -e "SET GLOBAL enforce_gtid_consistency = 'WARN';"
+      when: current_enforce_gtid.stdout == "OFF"
+
+    - name: Set enforce_gtid_consistency to ON
+      shell: mysql -u root -e "SET GLOBAL enforce_gtid_consistency = 'ON';"
+      when: current_enforce_gtid.stdout in ["OFF", "WARN"]
+
+    - name: Get current gtid_mode
+      shell: mysql -u root -se "SELECT @@gtid_mode;"
+      register: current_gtid_mode
+      changed_when: false
+
+    - name: Set gtid_mode to OFF_PERMISSIVE
+      shell: mysql -u root -e "SET GLOBAL gtid_mode = 'OFF_PERMISSIVE';"
+      when: current_gtid_mode.stdout == "OFF"
+
+    - name: Set gtid_mode to ON_PERMISSIVE
+      shell: mysql -u root -e "SET GLOBAL gtid_mode = 'ON_PERMISSIVE';"
+      when: current_gtid_mode.stdout in ["OFF", "OFF_PERMISSIVE"]
+
+    - name: Set gtid_mode to ON
+      shell: mysql -u root -e "SET GLOBAL gtid_mode = 'ON';"
+      when: current_gtid_mode.stdout in ["OFF", "OFF_PERMISSIVE", "ON_PERMISSIVE"]
+
+    - name: Persist replication settings in mysqld.cnf
+      blockinfile:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        marker: "# {mark} ANSIBLE MANAGED - REPLICATION SETTINGS"
+        block: |
+          server_id              = {{ mysql_server_id }}
+          gtid_mode              = ON
+          enforce_gtid_consistency = ON
+          binlog_format          = ROW
+          binlog_expire_logs_seconds = 604800
+
+    - name: Create replication user
+      shell: |
+        mysql -u root -e "CREATE USER IF NOT EXISTS '{{ replication_user }}'@'10.0.5.%' IDENTIFIED WITH mysql_native_password BY '{{ replication_password }}';"
+        mysql -u root -e "GRANT REPLICATION SLAVE ON *.* TO '{{ replication_user }}'@'10.0.5.%';"
+        mysql -u root -e "FLUSH PRIVILEGES;"
+      no_log: true
+
+    - name: Get GTID and server_id status
+      shell: mysql -u root -se "SELECT @@gtid_mode, @@enforce_gtid_consistency, @@server_id;"
+      register: gtid_status
+      changed_when: false
+
+    - name: Display GTID status
+      debug:
+        msg: "{{ inventory_hostname }} — gtid_mode | enforce_gtid_consistency | server_id: {{ gtid_status.stdout }}"
+
+
+- name: Configure MySQL Replica for Multi-Source Replication
+  hosts: bd-replica
+  vars:
+    replication_user: "repl_user"
+    replication_password: "ReplStr0ng#Pass2024!"
+    sources:
+      - { name: "bd-middleware", ip: "10.0.5.10" }
+      - { name: "bd-condutor",   ip: "10.0.5.11" }
+      - { name: "bd-pagamentos", ip: "10.0.5.12" }
+      - { name: "bd-escolas",    ip: "10.0.5.13" }
+      - { name: "bd-exames",     ip: "10.0.5.14" }
+      - { name: "bd-veiculos",   ip: "10.0.5.15" }
+
+  tasks:
+    - name: Set server_id online
+      shell: mysql -u root -e "SET GLOBAL server_id = {{ mysql_server_id }};"
+      changed_when: false
+
+    - name: Get current enforce_gtid_consistency
+      shell: mysql -u root -se "SELECT @@enforce_gtid_consistency;"
+      register: current_enforce_gtid
+      changed_when: false
+
+    - name: Set enforce_gtid_consistency to WARN
+      shell: mysql -u root -e "SET GLOBAL enforce_gtid_consistency = 'WARN';"
+      when: current_enforce_gtid.stdout == "OFF"
+
+    - name: Set enforce_gtid_consistency to ON
+      shell: mysql -u root -e "SET GLOBAL enforce_gtid_consistency = 'ON';"
+      when: current_enforce_gtid.stdout in ["OFF", "WARN"]
+
+    - name: Get current gtid_mode
+      shell: mysql -u root -se "SELECT @@gtid_mode;"
+      register: current_gtid_mode
+      changed_when: false
+
+    - name: Set gtid_mode to OFF_PERMISSIVE
+      shell: mysql -u root -e "SET GLOBAL gtid_mode = 'OFF_PERMISSIVE';"
+      when: current_gtid_mode.stdout == "OFF"
+
+    - name: Set gtid_mode to ON_PERMISSIVE
+      shell: mysql -u root -e "SET GLOBAL gtid_mode = 'ON_PERMISSIVE';"
+      when: current_gtid_mode.stdout in ["OFF", "OFF_PERMISSIVE"]
+
+    - name: Set gtid_mode to ON
+      shell: mysql -u root -e "SET GLOBAL gtid_mode = 'ON';"
+      when: current_gtid_mode.stdout in ["OFF", "OFF_PERMISSIVE", "ON_PERMISSIVE"]
+
+    - name: Set read_only online
+      shell: mysql -u root -e "SET GLOBAL read_only = 1;"
+      changed_when: false
+
+    - name: Persist replica settings in mysqld.cnf
+      blockinfile:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        marker: "# {mark} ANSIBLE MANAGED - REPLICATION SETTINGS"
+        block: |
+          server_id              = {{ mysql_server_id }}
+          gtid_mode              = ON
+          enforce_gtid_consistency = ON
+          relay_log              = /var/log/mysql/mysql-relay-bin
+          log_slave_updates      = ON
+          read_only              = ON
+
+    - name: Check current channel IO state
+      shell: >
+        mysql -u root -se
+        "SELECT IFNULL(SERVICE_STATE,'NOT_CONFIGURED')
+         FROM performance_schema.replication_connection_status
+         WHERE CHANNEL_NAME = '{{ item.name }}';"
+      register: channel_status
+      changed_when: false
+      loop: "{{ sources }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Configure and start replication channel
+      shell: |
+        mysql -u root -e "STOP REPLICA FOR CHANNEL '{{ item.item.name }}';" 2>/dev/null || true
+        mysql -u root -e "CHANGE REPLICATION SOURCE TO \
+          SOURCE_HOST='{{ item.item.ip }}', \
+          SOURCE_PORT=3306, \
+          SOURCE_USER='{{ replication_user }}', \
+          SOURCE_PASSWORD='{{ replication_password }}', \
+          SOURCE_AUTO_POSITION=1 \
+          FOR CHANNEL '{{ item.item.name }}';"
+        mysql -u root -e "START REPLICA FOR CHANNEL '{{ item.item.name }}';"
+      when: item.stdout != "ON"
+      loop: "{{ channel_status.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      no_log: true
+
+    - name: Get replica status for all channels
+      shell: >
+        mysql -u root -se
+        "SELECT CHANNEL_NAME, SERVICE_STATE, LAST_ERROR_MESSAGE
+         FROM performance_schema.replication_connection_status;"
+      register: replica_channels
+      changed_when: false
+
+    - name: Display channel status
+      debug:
+        msg: "Replication channels (name | io_state | last_error): {{ replica_channels.stdout_lines }}"

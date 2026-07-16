@@ -1,0 +1,31 @@
+# IPs on the target infra to probe from the jump server
+ping_targets:
+  # DMZ
+  - 10.0.1.10   # dmz-portalveiculos
+  - 10.0.1.11   # dmz-portal-utentes
+  - 10.0.1.12   # dmz-integracoes
+  # App
+  - 10.0.2.10   # app-condutores
+  - 10.0.2.11   # app-veiculos
+  # API
+  - 10.0.3.10   # api-middleware
+  - 10.0.3.11   # api-condutor
+  - 10.0.3.12   # api-pagamentos
+  - 10.0.3.13   # api-escolas
+  - 10.0.3.14   # api-exames
+  - 10.0.3.15   # api-veiculos
+  # DB
+  - 10.0.5.10   # bd-middleware
+  - 10.0.5.11   # bd-condutor
+  - 10.0.5.12   # bd-pagamentos
+  - 10.0.5.13   # bd-escolas
+  - 10.0.5.14   # bd-exames
+  - 10.0.5.15   # bd-veiculos
+  - 10.0.5.20   # bd-replica
+  # Monitoring
+  - 10.0.4.10   # monitoring
+  - 10.0.4.11   # logs
+  - 10.0.4.13   # dns-server
+
+# Port to test (TCP)
+probe_port: 22

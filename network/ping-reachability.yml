@@ -1,0 +1,104 @@
+---
+# Playbook: ping-reachability.yml
+# Purpose: SSH into a jump server, probe a list of target IPs on a given TCP port,
+#          and report a clean table of results including the jump server's routing table.
+#
+# Usage:
+#   ansible-playbook -i inventory/jumphost.ini network/ping-reachability.yml
+#
+# Override port at runtime:
+#   ansible-playbook -i inventory/jumphost.ini network/ping-reachability.yml -e probe_port=443
+#
+# Hard-fail if anything is unreachable:
+#   ansible-playbook -i inventory/jumphost.ini network/ping-reachability.yml -e fail_on_unreachable=true
+
+- name: Probe target infra from jump server
+  hosts: jumphost
+  gather_facts: false
+  vars_files:
+    - ../vars/ping-targets.yml
+
+  tasks:
+
+    - name: Collect routing table from jump server
+      ansible.builtin.command: ip route show
+      register: route_table
+      changed_when: false
+
+    - name: "TCP probe port {{ probe_port }} on each target"
+      ansible.builtin.shell: >
+        timeout 3 bash -c "echo > /dev/tcp/{{ item }}/{{ probe_port }}" 2>/dev/null
+        && echo "open" || echo "closed"
+      register: probe_results
+      loop: "{{ ping_targets }}"
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Build result sets
+      ansible.builtin.set_fact:
+        reachable: >-
+          {{
+            probe_results.results
+            | selectattr('stdout', 'eq', 'open')
+            | map(attribute='item')
+            | list
+          }}
+        unreachable: >-
+          {{
+            probe_results.results
+            | selectattr('stdout', 'ne', 'open')
+            | map(attribute='item')
+            | list
+          }}
+
+    - name: Build result rows
+      ansible.builtin.set_fact:
+        result_rows: >-
+          {{
+            result_rows | default([]) + [
+              '  ' ~ item.item
+              ~ (' ' * (20 - item.item | length))
+              ~ ('[ OK ]' if item.stdout == 'open' else '[FAIL]')
+            ]
+          }}
+      loop: "{{ probe_results.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Results
+      ansible.builtin.debug:
+        msg: "{{ output }}"
+      vars:
+        route_rows: "{{ route_table.stdout_lines | map('regex_replace', '^', '  ') | list }}"
+        output: >-
+          {{
+            ['',
+             '  ============================================================',
+             '  Jump server : ' ~ inventory_hostname ~ ' (' ~ ansible_host ~ ')',
+             '  Port probed : ' ~ probe_port,
+             '  ============================================================',
+             '',
+             '  IP                   Status',
+             '  ------------------- --------'
+            ]
+            + result_rows
+            + ['',
+               '  ------------------- --------',
+               '  Reachable   : ' ~ (reachable   | length) ~ ' / ' ~ (ping_targets | length),
+               '  Unreachable : ' ~ (unreachable | length) ~ ' / ' ~ (ping_targets | length),
+               '',
+               '  ============================================================',
+               '  Routing table on ' ~ inventory_hostname,
+               '  ============================================================'
+              ]
+            + route_rows
+            + ['  ============================================================', '']
+          }}
+
+    - name: Fail if any host is unreachable (optional gate)
+      ansible.builtin.fail:
+        msg: "{{ unreachable | length }} target(s) unreachable on port {{ probe_port }}"
+      when:
+        - unreachable | length > 0
+        - fail_on_unreachable | default(false) | bool
